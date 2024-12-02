@@ -6,14 +6,14 @@ rails:
     config:
         autoalign:
             parameters:
-                fact_check_endpoint: "https://nvidia.autoalign.ai/factcheck"
+                groundedness_check_endpoint: "https://nvidia.autoalign.ai/groundedness_check"
             output:
                 guardrails_config:
                   {
-                      "factcheck": {
+                      "groundedness_checker": {
                           "verify_response": false
                       },
                   }
     output:
         flows:
-            - autoalign factcheck output
+            - autoalign groundedness output

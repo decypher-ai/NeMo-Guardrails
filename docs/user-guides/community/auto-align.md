@@ -7,7 +7,7 @@ AutoAlign comes with a library of built-in guardrails that you can easily use:
 1. [Gender bias Detection](#gender-bias-detection)
 2. [Harm Detection](#harm-detection)
 3. [Jailbreak Detection](#jailbreak-detection)
-4. [Confidential Detection](#confidential-detection)
+4. [Confidential Info Detection](#confidential-info-detection)
 5. [Intellectual property detection](#intellectual-property-detection)
 6. [Racial bias Detection](#racial-bias-detection)
 7. [Tonal Detection](#tonal-detection)
@@ -41,10 +41,11 @@ rails:
         autoalign:
             parameters:
                 endpoint: "https://<AUTOALIGN_ENDPOINT>/guardrail"
+                multi_language: False
             input:
                 guardrails_config:
                     {
-                      "pii_fast": {
+                      "pii": {
                           "enabled_types": [
                               "[BANK ACCOUNT NUMBER]",
                               "[CREDIT CARD NUMBER]",
@@ -98,7 +99,7 @@ rails:
                               "[RELIGION]": 0.5
                           }
                         },
-                        "confidential_detection": {
+                        "confidential_info_detection": {
                               "matching_scores": {
                                   "No Confidential": 0.5,
                                   "Legal Documents": 0.5,
@@ -117,7 +118,7 @@ rails:
                                   "score": 0.5
                               }
                         },
-                        "text_toxicity_extraction": {
+                        "toxicity_detection": {
                               "matching_scores": {
                                   "score": 0.5
                               }
@@ -153,7 +154,7 @@ rails:
             output:
                 guardrails_config:
                   {
-                      "pii_fast": {
+                      "pii": {
                           "enabled_types": [
                               "[BANK ACCOUNT NUMBER]",
                               "[CREDIT CARD NUMBER]",
@@ -207,7 +208,7 @@ rails:
                               "[RELIGION]": 0.5
                           }
                       },
-                      "confidential_detection": {
+                      "confidential_info_detection": {
                           "matching_scores": {
                               "No Confidential": 0.5,
                               "Legal Documents": 0.5,
@@ -226,7 +227,7 @@ rails:
                               "score": 0.5
                           }
                       },
-                      "text_toxicity_extraction": {
+                      "toxicity_detection": {
                           "matching_scores": {
                               "score": 0.5
                           }
@@ -268,6 +269,8 @@ rails:
 ```
 We also have to add the AutoAlign's guardrail endpoint in parameters.
 
+"multi_language" is an optional parameter to enable guardrails for non-English information
+
 One of the advanced configs is matching score (ranging from 0 to 1) which is a threshold that determines whether the guardrail will block the input/output or not.
 If the matching score is higher (i.e. close to 1) then the guardrail will be more strict.
 Some guardrails have very different format of `matching_scores` config,
@@ -299,8 +302,8 @@ define flow autoalign check output
     bot refuse to respond
     stop
   else
-    $pii_message_output = $output_result["pii_fast"]["response"]
-    if $output_result["pii_fast"]["guarded"]
+    $pii_message_output = $output_result["pii"]["response"]
+    if $output_result["pii"]["guarded"]
       bot respond pii output
       stop
 
@@ -317,7 +320,7 @@ The actions `autoalign_input_api` and `autoalign_output_api` takes in two argume
 `show_toxic_phrases`. Both the arguments expect boolean value being passed to them. The default value of
 `show_autoalign_message` is `True` and for `show_toxic_phrases` is False. The `show_autoalign_message` controls whether
 we will show any output from autoalign or not. The response from AutoAlign would be presented as a subtext, when
-`show_autoalign_message` is kept `True`. Details regarding the second argument can be found in `text_toxicity_extraction`
+`show_autoalign_message` is kept `True`. Details regarding the second argument can be found in `toxicity_detection`
 section.
 
 
@@ -380,13 +383,17 @@ For intellectual property detection, the matching score has to be following form
 "matching_scores": { "score": 0.5}
 ```
 
-### Confidential detection
+### Confidential Info detection
 
-The goal of the confidential detection rail is to determine if the text has any kind of confidential information. This rail can be applied at both input and output.
-This guardrail can be added by adding `confidential_detection` key in the dictionary under `guardrails_config` section
+```{warning}
+Backward incompatible changes are introduced in v0.12.0 due to AutoAlign API changes
+```
+
+The goal of the confidential info detection rail is to determine if the text has any kind of confidential information. This rail can be applied at both input and output.
+This guardrail can be added by adding `confidential_info_detection` key in the dictionary under `guardrails_config` section
 which is under `input` or `output` section which should be in `autoalign` section in `config.yml`.
 
-For confidential detection, the matching score has to be following format:
+For confidential info detection, the matching score has to be following format:
 
 ```yaml
 "matching_scores": {
@@ -436,8 +443,12 @@ For tonal detection, the matching score has to be following format:
 
 ### Toxicity extraction
 
+```{warning}
+Backward incompatible changes are introduced in v0.12.0 due to AutoAlign API changes
+```
+
 The goal of the toxicity detection rail is to determine if the text has any kind of toxic content. This rail can be applied at both input and output. This guardrail not just detects the toxicity of the text but also extracts toxic phrases from the text.
-This guardrail can be added by adding `text_toxicity_extraction` key in the dictionary under `guardrails_config` section
+This guardrail can be added by adding `toxicity_detection` key in the dictionary under `guardrails_config` section
 which is under `input` or `output` section which should be in `autoalign` section in `config.yml`.
 
 For text toxicity detection, the matching score has to be following format:
@@ -455,8 +466,8 @@ define subflow autoalign check input
     $autoalign_input_response = $input_result['combined_response']
     bot refuse to respond
     stop
-  else if $input_result["pii_fast"] and $input_result["pii_fast"]["guarded"]:
-    $user_message = $input_result["pii_fast"]["response"]
+  else if $input_result["pii"] and $input_result["pii"]["guarded"]:
+    $user_message = $input_result["pii"]["response"]
 
 define subflow autoalign check output
   $output_result = execute autoalign_output_api(show_autoalign_message=True, show_toxic_phrases=True)
@@ -464,15 +475,15 @@ define subflow autoalign check output
     bot refuse to respond
     stop
   else
-    $pii_message_output = $output_result["pii_fast"]["response"]
-    if $output_result["pii_fast"]["guarded"]
+    $pii_message_output = $output_result["pii"]["response"]
+    if $output_result["pii"]["guarded"]
       $bot_message = $pii_message_output
 
-define subflow autoalign factcheck output
+define subflow autoalign groundedness output
   if $check_facts == True
     $check_facts = False
     $threshold = 0.5
-    $output_result = execute autoalign_factcheck_output_api(factcheck_threshold=$threshold, show_autoalign_message=True)
+    $output_result = execute autoalign_groundedness_output_api(factcheck_threshold=$threshold, show_autoalign_message=True)
     bot provide response
 
 define bot refuse to respond
@@ -482,8 +493,12 @@ define bot refuse to respond
 
 ### PII
 
+```{warning}
+Backward incompatible changes are introduced in v0.12.0 due to AutoAlign API changes
+```
+
 To use AutoAlign's PII (Personal Identifiable Information) module, you have to list the entities that you wish to redact
-in `enabled_types` in the dictionary of `guardrails_config` under the key of `pii_fast`; if not listed then all PII types will be redacted.
+in `enabled_types` in the dictionary of `guardrails_config` under the key of `pii`; if not listed then all PII types will be redacted.
 
 The above sample shows all PII entities that is currently being supported by AutoAlign.
 
@@ -498,7 +513,7 @@ You have to define the config for output and input side separately based on wher
 Example PII config:
 
 ```yaml
-"pii_fast": {
+"pii": {
   "enabled_types": [
       "[BANK ACCOUNT NUMBER]",
       "[CREDIT CARD NUMBER]",
@@ -554,9 +569,14 @@ Example PII config:
 }
 ```
 
-### Factcheck or Groundness Check
-The factcheck needs an input statement (represented as ‘prompt’) as a list of evidence documents.
-To use AutoAlign's factcheck module, you have to modify the `config.yml` in the following format:
+### Groundness Check
+
+```{warning}
+Backward incompatible changes are introduced in v0.12.0 due to AutoAlign API changes
+```
+
+The groundness check needs an input statement (represented as ‘prompt’) as a list of evidence documents.
+To use AutoAlign's groundness check module, you have to modify the `config.yml` in the following format:
 
 ```yaml
 rails:
@@ -564,21 +584,21 @@ rails:
     autoalign:
       guardrails_config:
         {
-          "factcheck":{
+          "groundedness_checker":{
             "verify_response": false
           }
         }
       parameters:
-        fact_check_endpoint: "https://<AUTOALIGN_ENDPOINT>/factcheck"
+        groundedness_check_endpoint: "https://<AUTOALIGN_ENDPOINT>/groundedness_check"
   output:
     flows:
-      - autoalign factcheck output
+      - autoalign groundedness output
 ```
 
-Specify the factcheck endpoint the parameters section of autoalign's config.
-Then, you have to call the corresponding subflows for factcheck guardrails.
+Specify the groundness endpoint the parameters section of autoalign's config.
+Then, you have to call the corresponding subflows for groundness guardrails.
 
-In the guardrails config for factcheck you can toggle "verify_response" flag
+In the guardrails config for groundness check you can toggle "verify_response" flag
 which will enable(true) / disable (false) additional processing of LLM Response.
 This processing ensures that only relevant LLM responses undergo fact-checking
 and responses like greetings ('Hi', 'Hello' etc.) do not go through fact-checking
@@ -586,16 +606,16 @@ process.
 
 Note that the verify_response is set to False by default as it requires additional
 computation, and we encourage users to determine which LLM responses should go through
-AutoAlign fact checking whenever possible.
+AutoAlign groundness check whenever possible.
 
 
 Following is the format of the colang file, which is present in the library:
 ```colang
-define subflow autoalign factcheck output
+define subflow autoalign groundedness output
   if $check_facts == True
     $check_facts = False
     $threshold = 0.5
-    $output_result = execute autoalign_factcheck_output_api(factcheck_threshold=$threshold)
+    $output_result = execute autoalign_groundedness_output_api(factcheck_threshold=$threshold)
 ```
 
 The `threshold` can be changed depending upon the use-case, the `output_result`
@@ -627,6 +647,69 @@ for ideal chit-chat.
 
 
 
-The output of the factcheck endpoint provides you with a factcheck score against which we can add a threshold which determines whether the given output is factually correct or not.
+The output of the groundness check endpoint provides you with a factcheck score against which we can add a threshold which determines whether the given output is factually correct or not.
 
 The supporting documents or the evidence has to be placed within a `kb` folder within `config` folder.
+
+
+### Fact Check
+
+```{warning}
+Backward incompatible changes are introduced in v0.12.0 due to AutoAlign API changes
+```
+
+The fact check uses the bot response and user input prompt to check the factual correctness of the bot response based on the user prompt. Unlike groundness check, fact check does not use a pre-existing internal knowledge base.
+To use AutoAlign's fact check module, modify the `config.yml` from example autoalign_factcheck_config.
+
+```yaml
+models:
+  - type: main
+    engine: openai
+    model: gpt-3.5-turbo-instruct
+rails:
+    config:
+        autoalign:
+            parameters:
+                fact_check_endpoint: "https://<AUTOALIGN_ENDPOINT>/content_moderation"
+                multi_language: False
+            output:
+                guardrails_config:
+                    {
+                        "fact_checker": {
+                            "mode": "DETECT",
+                            "knowledge_base": [
+                                {
+                                    "add_block_domains": [],
+                                    "documents": [],
+                                    "knowledgeType": "web",
+                                    "num_urls": 3,
+                                    "search_engine": "Google",
+                                    "static_knowledge_source_type": ""
+                                }
+                            ],
+                            "content_processor": {
+                                "max_tokens_per_chunk": 100,
+                                "max_chunks_per_source": 3,
+                                "use_all_chunks": false,
+                                "name": "Semantic Similarity",
+                                "filter_method": {
+                                    "name": "Match Threshold",
+                                    "threshold": 0.5
+                                },
+                                "content_filtering": true,
+                                "content_filtering_threshold": 0.6,
+                                "factcheck_max_text": false,
+                                "max_input_text": 150
+                            },
+                            "mitigation_with_evidence": false
+                        },
+                    }
+    output:
+        flows:
+            - autoalign factcheck output
+```
+
+Specify the fact_check_endpoint to the correct AutoAlign environment.
+Then set to the corresponding subflows for fact check guardrail.
+
+The output of the fact check endpoint provides you with a fact check score that combines the factual correctness of various statements made by the bot response. Then provided with a user set threshold, will log a warning if the bot response is determined to be factually incorrect
